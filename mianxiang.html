@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title></title>
+<style type="text/css">
+            body {
+                background-color: #000;
+            }
+
+            input {
+                color: #ffffff;
+            }
+
+            #wrapper {
+                /*display: table;*/
+                width: 100%;
+                height: 100%;
+            }
+
+            #wrapper-inner {
+               /* display: table-cell;*/
+                vertical-align: middle;
+                padding-left: 25%;
+                padding-right: 25%;
+            }
+
+            #tip {
+                color: #fff;
+                opacity: 0;
+                transition: opacity 1s;
+                -moz-transition: opacity 1s;
+                -webkit-transition: opacity 1s;
+                -o-transition: opacity 1s;
+            }
+
+            #tip.show {
+                opacity: 1
+            }
+        </style>
+</head>
+<body>
+	<div id="wrapper">
+            <div id="wrapper-inner">
+                <p id="tip">Decoding...</p>
+                <input id="fileChooser" type="file" />
+                <br>
+                <canvas id="visualizer" width="1000" height="800">Your browser does not support Canvas tag.</canvas>
+            </div>
+        </div>
+</body>
+<script>
+var file;
+function audioSee(){
+	this.AudioContext = window.AudioContext || window.webkitAudioContext; //Cross browser variant.
+	this.audioContext;
+	this.fileContent;
+	this.audioBufferSourceNode;
+	this.analyser;
+	this.fileReader = new FileReader();
+	this.fileChooser = document.getElementById('fileChooser');
+	this.tip = document.getElementById('tip');
+	this.canvas = document.getElementById('visualizer');
+	this.ctx = this.canvas.getContext("2d");
+}
+audioSee.prototype.init = function(){
+	this.change()
+}
+audioSee.prototype.change = function() {
+			var This = this;
+		    this.audioContext = new AudioContext();
+		    this.analyser = this.audioContext.createAnalyser();
+		    this.analyser.fftSize = 256;
+		
+		   this.fileChooser.onchange = function() {
+		        if (This.fileChooser.files[0]) {
+		            file = This.fileChooser.files[0];
+		            This.showTip(true);
+		            This.loadFile(This);
+		        }
+		   }
+		}
+audioSee.prototype.showTip = function(show) {
+		    if (show) {
+		        this.tip.className = "show";
+		    } else {
+		        this.tip.className = "";
+		    }
+		}
+audioSee.prototype.loadFile = function(that) {
+		    this.fileReader.onload = function(e){
+		       that.fileContent = e.target.result;
+		       that.decodecFile(that);
+		    }
+		    this.fileReader.readAsArrayBuffer(file);
+		}
+audioSee.prototype.decodecFile = function(that) {
+		    this.audioContext.decodeAudioData(this.fileContent, function(buffer) {
+		        that.start(buffer);
+		    });
+		}
+audioSee.prototype.start = function(buffer) {
+			var _this = this;
+		    if(this.audioBufferSourceNode) {
+		        this.audioBufferSourceNode.stop();
+		    }
+		
+		    this. audioBufferSourceNode = this.audioContext.createBufferSource();
+		    this.audioBufferSourceNode.connect(this.analyser);
+		    this.analyser.connect(this.audioContext.destination);//链接到扬声器
+		    this. audioBufferSourceNode.buffer = buffer;
+		    this. audioBufferSourceNode.start(0);
+		    this.showTip(false);
+		    window.requestAnimationFrame(function(){
+		    	_this.render();
+		    });
+		}
+audioSee.prototype.render = function() {
+			var _this = this;
+		    this.ctx.strokeStyle = "#00d0ff";
+		    this.ctx.lineWidth = 2;
+		    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+		
+		   var dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+		   this.analyser.getByteFrequencyData(dataArray);
+		   var step = 2;
+		   for (var i = 0; i < 40; i++) {
+		    var energy = Math.ceil(dataArray[step * i]);
+	            this.ctx.beginPath();
+	            this.ctx.strokeRect(20 * i + 2,300,20,-energy);
+	            this.ctx.strokeRect(20 * i + 2,300,20,energy);
+	            //createLinearGradient(20 * i + 2,300,20,-energy)
+	            this.ctx.closePath();
+	            this.ctx.stroke();
+		   }
+		    window.requestAnimationFrame(function(){
+		    	_this.render()
+		    });
+		}
+var la = new audioSee()
+la.init();
+</script>
+</html>
